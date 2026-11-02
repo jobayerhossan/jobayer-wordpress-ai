@@ -29,6 +29,7 @@ class JAI_REST {
         self::route( '/content/rollback', 'rollback_content' );
         self::route( '/content/create', 'create_content' );
         self::route( '/content/create/rollback', 'rollback_created_content' );
+        self::route( '/media/upload', 'upload_media' );
     }
 
     private static function json( WP_REST_Request $request ) {
@@ -60,6 +61,7 @@ class JAI_REST {
             'capabilities' => array(
                 'content_create' => true,
                 'content_update' => true,
+                'media_upload' => true,
                 'rank_math' => defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath\\Helper' ),
                 'code_patch' => true,
                 'rollback' => true,
@@ -126,5 +128,9 @@ class JAI_REST {
     public static function rollback_created_content( WP_REST_Request $r ) {
         $p = self::json( $r );
         return JAI_Content::rollback_created( $p['change_id'] ?? '', $p['expected_revision_hash'] ?? '' );
+    }
+
+    public static function upload_media( WP_REST_Request $r ) {
+        return JAI_Media::upload( self::json( $r ) );
     }
 }
