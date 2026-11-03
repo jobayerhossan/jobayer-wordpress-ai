@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Jobayer AI Agent
- * Description: Secure WordPress AI development agent with code/content/media editing, encrypted backups, rollback, diagnostics, and one-click MCP registration.
- * Version: 0.6.0
+ * Description: Secure WordPress AI development agent with code/content/media/Elementor editing, encrypted backups, rollback, diagnostics, and one-click MCP registration.
+ * Version: 0.7.0
  * Author: Jobayer Hossan
  * Requires at least: 6.4
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'JAI_AGENT_VERSION', '0.6.0' );
+define( 'JAI_AGENT_VERSION', '0.7.0' );
 define( 'JAI_AGENT_FILE', __FILE__ );
 define( 'JAI_AGENT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'JAI_BACKUP_DIR', WP_CONTENT_DIR . '/jobayer-ai-backups' );
@@ -24,6 +24,7 @@ require_once JAI_AGENT_DIR . 'includes/class-jai-files.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-runtime.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-content.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-media.php';
+require_once JAI_AGENT_DIR . 'includes/class-jai-elementor.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-registry.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-rest.php';
 require_once JAI_AGENT_DIR . 'includes/class-jai-registry-rest.php';
