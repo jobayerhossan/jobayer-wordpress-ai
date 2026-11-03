@@ -30,6 +30,20 @@ class JAI_REST {
         self::route( '/content/create', 'create_content' );
         self::route( '/content/create/rollback', 'rollback_created_content' );
         self::route( '/media/upload', 'upload_media' );
+
+        self::route( '/elementor/document/get', 'elementor_get_document' );
+        self::route( '/elementor/document/create', 'elementor_create_document' );
+        self::route( '/elementor/document/update', 'elementor_update_document' );
+        self::route( '/elementor/element/get', 'elementor_get_element' );
+        self::route( '/elementor/element/update', 'elementor_update_element' );
+        self::route( '/elementor/element/add', 'elementor_add_element' );
+        self::route( '/elementor/element/delete', 'elementor_delete_element' );
+        self::route( '/elementor/element/move', 'elementor_move_element' );
+        self::route( '/elementor/json/validate', 'elementor_validate_json' );
+        self::route( '/elementor/json/import', 'elementor_import_json' );
+        self::route( '/elementor/json/export', 'elementor_export_json' );
+        self::route( '/elementor/css/regenerate', 'elementor_regenerate_css' );
+        self::route( '/elementor/rollback', 'elementor_rollback' );
     }
 
     private static function json( WP_REST_Request $request ) {
@@ -42,6 +56,7 @@ class JAI_REST {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
         $theme = wp_get_theme();
+        $elementor = JAI_Elementor::version();
         return rest_ensure_response( array(
             'site_url' => site_url(),
             'home_url' => home_url(),
@@ -55,6 +70,7 @@ class JAI_REST {
             'active_plugins' => array_values( (array) get_option( 'active_plugins', array() ) ),
             'woocommerce' => defined( 'WC_VERSION' ) ? WC_VERSION : false,
             'acf' => defined( 'ACF_VERSION' ) ? ACF_VERSION : false,
+            'elementor' => $elementor,
             'debug' => defined( 'WP_DEBUG' ) && WP_DEBUG,
             'php_validation' => JAI_Files::php_validation_method(),
             'editable_roots' => array( 'themes','plugins' ),
@@ -66,6 +82,10 @@ class JAI_REST {
                 'code_patch' => true,
                 'rollback' => true,
                 'site_registry' => true,
+                'elementor_read' => (bool) $elementor,
+                'elementor_write' => (bool) $elementor,
+                'elementor_json_import_export' => (bool) $elementor,
+                'elementor_targeted_edits' => (bool) $elementor,
                 'woocommerce_products' => false,
                 'acf_write' => false,
                 'arbitrary_sql' => false,
@@ -132,5 +152,75 @@ class JAI_REST {
 
     public static function upload_media( WP_REST_Request $r ) {
         return JAI_Media::upload( self::json( $r ) );
+    }
+
+    public static function elementor_get_document( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::get_document( $p['id'] ?? 0 );
+    }
+
+    public static function elementor_create_document( WP_REST_Request $r ) {
+        return JAI_Elementor::create_document( self::json( $r ) );
+    }
+
+    public static function elementor_update_document( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::update_document( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['elements'] ?? array(), array_key_exists( 'page_settings', $p ) ? $p['page_settings'] : null );
+    }
+
+    public static function elementor_get_element( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::get_element( $p['id'] ?? 0, $p['element_id'] ?? '' );
+    }
+
+    public static function elementor_update_element( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::update_element(
+            $p['id'] ?? 0,
+            $p['expected_revision_hash'] ?? '',
+            $p['element_id'] ?? '',
+            array_key_exists( 'settings', $p ) ? $p['settings'] : null,
+            $p['settings_mode'] ?? 'merge',
+            array_key_exists( 'widget_type', $p ) ? $p['widget_type'] : null
+        );
+    }
+
+    public static function elementor_add_element( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::add_element( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', array_key_exists( 'parent_id', $p ) ? $p['parent_id'] : null, $p['element'] ?? array(), $p['position'] ?? PHP_INT_MAX );
+    }
+
+    public static function elementor_delete_element( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::delete_element( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['element_id'] ?? '' );
+    }
+
+    public static function elementor_move_element( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::move_element( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['element_id'] ?? '', array_key_exists( 'new_parent_id', $p ) ? $p['new_parent_id'] : null, $p['position'] ?? PHP_INT_MAX );
+    }
+
+    public static function elementor_validate_json( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::validate_json( $p['json'] ?? '', $p['source_url'] ?? '' );
+    }
+
+    public static function elementor_import_json( WP_REST_Request $r ) {
+        return JAI_Elementor::import_json( self::json( $r ) );
+    }
+
+    public static function elementor_export_json( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::export_json( $p['id'] ?? 0 );
+    }
+
+    public static function elementor_regenerate_css( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::regenerate_css( $p['id'] ?? 0 );
+    }
+
+    public static function elementor_rollback( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Elementor::rollback( $p['change_id'] ?? '', $p['expected_revision_hash'] ?? '' );
     }
 }
