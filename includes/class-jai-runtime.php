@@ -15,13 +15,25 @@ class JAI_Runtime {
         if ( '/' !== $path[0] ) { $path = '/' . $path; }
         $url = home_url( $path );
         $start = microtime( true );
-        $response = wp_remote_request( $url, array(
-            'method' => $method,
-            'timeout' => 15,
-            'redirection' => 3,
-            'sslverify' => true,
-            'headers' => array( 'User-Agent' => 'Jobayer-AI-Agent/' . JAI_AGENT_VERSION ),
-        ) );
+        // Some hosts can reach their own public site via IPv4 but reset IPv6 connections.
+        // Scope the cURL option to this single same-site check; remove it immediately after.
+        $force_ipv4 = static function ( $handle, $parsed_args, $request_url ) use ( $url ) {
+            if ( $request_url === $url && defined( 'CURLOPT_IPRESOLVE' ) && defined( 'CURL_IPRESOLVE_V4' ) ) {
+                curl_setopt( $handle, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
+            }
+        };
+        add_action( 'http_api_curl', $force_ipv4, 10, 3 );
+        try {
+            $response = wp_remote_request( $url, array(
+                'method' => $method,
+                'timeout' => 15,
+                'redirection' => 3,
+                'sslverify' => true,
+                'headers' => array( 'User-Agent' => 'Jobayer-AI-Agent/' . JAI_AGENT_VERSION ),
+            ) );
+        } finally {
+            remove_action( 'http_api_curl', $force_ipv4, 10 );
+        }
         if ( is_wp_error( $response ) ) {
             return new WP_Error( 'jai_url_check_failed', $response->get_error_message(), array( 'status' => 502, 'url' => $url ) );
         }
