@@ -1,0 +1,18 @@
+name: PHP syntax and extension gate checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: WordPress plugin PHP lint
+        run: |
+          find . -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
+      - name: Extension guardrail tests
+        run: php tests/test-extensions.php

@@ -1,6 +1,12 @@
-# Jobayer AI Agent 0.6.0
+# Jobayer AI Agent 0.8.0
 
 Installable WordPress agent for the Jobayer WordPress AI MCP server.
+
+## Plugin and theme management (v0.8.0)
+
+This release adds disabled-by-default WordPress.org plugin/theme installation and activation through the authenticated Agent REST API. A WordPress administrator opts in under **Tools → Jobayer AI Agent**; the Node MCP requires an independent enable flag, exact site allowlist and operation confirmation.
+
+See [extension setup and security guide](docs/extension-management.md).
 
 ## Core capabilities
 

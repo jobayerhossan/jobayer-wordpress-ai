@@ -8,6 +8,7 @@ class JAI_Admin {
         add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
         add_action( 'admin_post_jai_rotate_secret', array( __CLASS__, 'rotate_secret' ) );
         add_action( 'admin_post_jai_connect_mcp', array( __CLASS__, 'connect_mcp' ) );
+        add_action( 'admin_post_jai_save_extension_management', array( __CLASS__, 'save_extension_management' ) );
     }
 
     public static function menu() {
@@ -85,6 +86,22 @@ class JAI_Admin {
         wp_safe_redirect( admin_url( 'tools.php?page=jobayer-ai-agent' ) ); exit;
     }
 
+    public static function save_extension_management() {
+        if ( ! current_user_can( 'manage_options' ) || ! current_user_can( 'install_plugins' ) ||
+            ! current_user_can( 'install_themes' ) || is_multisite() ) {
+            wp_die( 'Unauthorized to delegate extension management.' );
+        }
+        check_admin_referer( 'jai_save_extension_management' );
+        $enabled = isset( $_POST['allow_extension_management'] ) &&
+            '1' === (string) wp_unslash( $_POST['allow_extension_management'] );
+        update_option( JAI_Extensions::OPTION, $enabled ? 'yes' : 'no', false );
+        self::notice( $enabled ? 'warning' : 'success',
+            $enabled ? 'Remote WordPress.org extension management ENABLED for this site. Protect your MCP server and site secret.' :
+                'Remote extension management disabled.' );
+        wp_safe_redirect( admin_url( 'tools.php?page=jobayer-ai-agent' ) );
+        exit;
+    }
+
     public static function rotate_secret() {
         if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Unauthorized.' ); }
         check_admin_referer( 'jai_rotate_secret' );
@@ -143,6 +160,28 @@ class JAI_Admin {
                     <tr><th>PHP validation</th><td><?php echo esc_html( JAI_Files::php_validation_method() ?: 'Unavailable' ); ?></td></tr>
                 </table>
             </details>
+
+            <h2>Remote plugin and theme management</h2>
+            <p>This capability is <strong>disabled by default</strong>. If enabled, your HMAC-authenticated
+            MCP server may install and activate <strong>official WordPress.org</strong> plugins and themes on this site
+            after explicit approval of an exact slug. The MCP also requires its own enable flag and site allowlist.
+            No custom ZIP URLs, deletion, deactivation, or updates are supported. Installing extensions can change
+            website functionality; activating a theme may change the entire appearance.</p>
+            <p><strong>Current status:</strong>
+                <?php echo JAI_Extensions::enabled() ? '<strong style="color:#b32d2e">Enabled</strong>' : '<strong>Disabled</strong>'; ?>
+            </p>
+            <?php if ( current_user_can( 'install_plugins' ) && current_user_can( 'install_themes' ) && ! is_multisite() ) : ?>
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                <input type="hidden" name="action" value="jai_save_extension_management">
+                <?php wp_nonce_field( 'jai_save_extension_management' ); ?>
+                <label><input type="checkbox" name="allow_extension_management" value="1"
+                    <?php checked( JAI_Extensions::enabled() ); ?>>
+                    Allow my authenticated MCP to install and activate WordPress.org plugins/themes on this site.</label>
+                <?php submit_button( 'Save extension management setting', 'secondary' ); ?>
+            </form>
+            <?php else : ?>
+            <p><em>Extension management requires an administrator with plugin/theme installation privileges on a single-site WordPress installation.</em></p>
+            <?php endif; ?>
 
             <h2>Safety</h2>
             <p>Code edits are limited to theme/plugin source files, PHP changes are syntax checked, and connector changes use encrypted backups and rollback. Arbitrary SQL and shell execution are not exposed.</p>
