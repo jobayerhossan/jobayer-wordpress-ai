@@ -31,6 +31,12 @@ class JAI_REST {
         self::route( '/content/create/rollback', 'rollback_created_content' );
         self::route( '/media/upload', 'upload_media' );
 
+        // Official WordPress.org extensions; further guarded by site-admin opt-in.
+        self::route( '/extensions/list', 'extensions_list' );
+        self::route( '/extensions/inspect', 'extensions_inspect' );
+        self::route( '/extensions/install', 'extensions_install' );
+        self::route( '/extensions/activate', 'extensions_activate' );
+
         self::route( '/elementor/document/get', 'elementor_get_document' );
         self::route( '/elementor/document/create', 'elementor_create_document' );
         self::route( '/elementor/document/update', 'elementor_update_document' );
@@ -86,6 +92,9 @@ class JAI_REST {
                 'elementor_write' => (bool) $elementor,
                 'elementor_json_import_export' => (bool) $elementor,
                 'elementor_targeted_edits' => (bool) $elementor,
+                'extension_management' => true,
+                'extension_management_enabled' => JAI_Extensions::enabled(),
+                'extension_wordpress_org_only' => true,
                 'woocommerce_products' => false,
                 'acf_write' => false,
                 'arbitrary_sql' => false,
@@ -152,6 +161,25 @@ class JAI_REST {
 
     public static function upload_media( WP_REST_Request $r ) {
         return JAI_Media::upload( self::json( $r ) );
+    }
+
+    public static function extensions_list() {
+        return JAI_Extensions::status();
+    }
+
+    public static function extensions_inspect( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Extensions::inspect( $p['type'] ?? '', $p['slug'] ?? '' );
+    }
+
+    public static function extensions_install( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Extensions::install( $p['type'] ?? '', $p['slug'] ?? '', $p['activate'] ?? false, $p['confirmed'] ?? false );
+    }
+
+    public static function extensions_activate( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Extensions::activate( $p['type'] ?? '', $p['slug'] ?? '', $p['confirmed'] ?? false );
     }
 
     public static function elementor_get_document( WP_REST_Request $r ) {
