@@ -31,20 +31,20 @@ Advanced ACF/WooCommerce/taxonomy tools remain intentionally outside the core pr
 
 ## Yoast SEO support (0.7.1)
 
-When Yoast SEO is active, authenticated content reads include the existing \`yoast\`
-object with \`title\`, \`description\`, and \`focus_keyword\`, plus \`yoast_available\`.
-The HMAC-authenticated \`/content/update\` endpoint accepts an optional \`yoast\`
+When Yoast SEO is active, authenticated content reads include the existing `yoast`
+object with `title`, `description`, and `focus_keyword`, plus `yoast_available`.
+The HMAC-authenticated `/content/update` endpoint accepts an optional `yoast`
 object containing only those fields. Each write requires the current
-\`expected_revision_hash\`, backs up the original post and SEO metadata, and
-is rollback-compatible using \`/content/rollback\`.
+`expected_revision_hash`, backs up the original post and SEO metadata, and
+is rollback-compatible using `/content/rollback`.
 
-Only specified Yoast keys are modified; \`null\` or an empty string clears a field.
+Only specified Yoast keys are modified; `null` or an empty string clears a field.
 Yoast's normal post-save watcher is triggered to refresh the indexable record.
 Yoast must be active for writes, but existing Rank Math behavior remains unchanged.
 
 For example:
 
-\`\`\`json
+```json
 {
   "id": 5,
   "expected_revision_hash": "<hash from /content/get>",
@@ -54,7 +54,7 @@ For example:
     "focus_keyword": "drywall repair Tulsa"
   }
 }
-\`\`\`
+```
 
-The paired MCP server must also be updated to expose the \`yoast\` fields.
+The paired MCP server must also be updated to expose the `yoast` fields.
 Do not edit the live website until both the agent and MCP server versions are deployed.
