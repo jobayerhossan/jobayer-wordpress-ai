@@ -30,6 +30,10 @@ class JAI_REST {
         self::route( '/content/create', 'create_content' );
         self::route( '/content/create/rollback', 'rollback_created_content' );
         self::route( '/media/upload', 'upload_media' );
+        self::route( '/media/images/list', 'list_media_images' );
+        self::route( '/media/images/get', 'get_media_image' );
+        self::route( '/media/alt/update', 'update_media_alt' );
+        self::route( '/media/alt/rollback', 'rollback_media_alt' );
 
         self::route( '/elementor/document/get', 'elementor_get_document' );
         self::route( '/elementor/document/create', 'elementor_create_document' );
@@ -78,6 +82,7 @@ class JAI_REST {
                 'content_create' => true,
                 'content_update' => true,
                 'media_upload' => true,
+                'media_alt_management' => true,
                 'rank_math' => defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath\\Helper' ),
                 'yoast' => JAI_Content::yoast_available(),
                 'code_patch' => true,
@@ -153,6 +158,26 @@ class JAI_REST {
 
     public static function upload_media( WP_REST_Request $r ) {
         return JAI_Media::upload( self::json( $r ) );
+    }
+
+    public static function list_media_images( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Media::list_images( $p['page'] ?? 1, $p['per_page'] ?? 50, ! empty( $p['missing_only'] ) );
+    }
+
+    public static function get_media_image( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Media::get_image( $p['id'] ?? 0 );
+    }
+
+    public static function update_media_alt( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Media::update_alt( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['alt_text'] ?? null, ! empty( $p['overwrite_existing'] ) );
+    }
+
+    public static function rollback_media_alt( WP_REST_Request $r ) {
+        $p = self::json( $r );
+        return JAI_Media::rollback_alt( $p['change_id'] ?? '', $p['expected_revision_hash'] ?? '' );
     }
 
     public static function elementor_get_document( WP_REST_Request $r ) {
