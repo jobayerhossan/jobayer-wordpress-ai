@@ -81,6 +81,79 @@ class JAI_Content {
         return $out;
     }
 
+
+    public static function yoast_available() {
+        return defined( 'WPSEO_VERSION' ) || class_exists( 'WPSEO_Meta', false );
+    }
+
+    private static function yoast_keys() {
+        return array(
+            'title' => '_yoast_wpseo_title',
+            'description' => '_yoast_wpseo_metadesc',
+            'focus_keyword' => '_yoast_wpseo_focuskw',
+        );
+    }
+
+    private static function yoast_values( $post_id ) {
+        $out = array();
+        foreach ( self::yoast_keys() as $name => $key ) {
+            $out[ $name ] = get_post_meta( $post_id, $key, true );
+        }
+        return $out;
+    }
+
+    private static function yoast_snapshot( $post_id ) {
+        $out = array();
+        foreach ( self::yoast_keys() as $name => $key ) {
+            $out[ $name ] = array(
+                'exists' => metadata_exists( 'post', $post_id, $key ),
+                'value' => get_post_meta( $post_id, $key, true ),
+            );
+        }
+        return $out;
+    }
+
+    private static function validate_yoast( $changes ) {
+        if ( empty( $changes ) ) { return true; }
+        if ( ! self::yoast_available() ) {
+            return new WP_Error( 'jai_yoast_not_active', 'Yoast SEO must be active to update Yoast metadata.', array( 'status' => 409 ) );
+        }
+        $unknown = array_diff( array_keys( $changes ), array_keys( self::yoast_keys() ) );
+        if ( $unknown ) {
+            return new WP_Error( 'jai_yoast_field_denied', 'Unsupported Yoast field: ' . reset( $unknown ), array( 'status' => 400 ) );
+        }
+        foreach ( $changes as $value ) {
+            if ( null !== $value && ! is_string( $value ) ) {
+                return new WP_Error( 'jai_yoast_invalid_value', 'Yoast SEO fields must be strings or null.', array( 'status' => 400 ) );
+            }
+        }
+        return true;
+    }
+
+    private static function apply_yoast( $post_id, $changes ) {
+        foreach ( self::yoast_keys() as $name => $key ) {
+            if ( ! array_key_exists( $name, $changes ) ) { continue; }
+            $value = $changes[ $name ];
+            if ( null === $value || '' === $value ) {
+                delete_post_meta( $post_id, $key );
+            } else {
+                $clean = 'focus_keyword' === $name ? sanitize_text_field( $value ) : sanitize_textarea_field( $value );
+                update_post_meta( $post_id, $key, wp_slash( $clean ) );
+            }
+        }
+    }
+
+    private static function restore_yoast( $post_id, $snapshot ) {
+        foreach ( self::yoast_keys() as $name => $key ) {
+            $entry = $snapshot[ $name ] ?? array( 'exists' => false, 'value' => null );
+            if ( ! empty( $entry['exists'] ) ) {
+                update_post_meta( $post_id, $key, wp_slash( $entry['value'] ) );
+            } else {
+                delete_post_meta( $post_id, $key );
+            }
+        }
+    }
+
     private static function snapshot( WP_Post $post ) {
         return array(
             'post' => array(
@@ -93,6 +166,7 @@ class JAI_Content {
                 'post_content' => $post->post_content,
             ),
             'rank_math' => self::rank_math_snapshot( $post->ID ),
+            'yoast' => self::yoast_snapshot( $post->ID ),
         );
     }
 
@@ -129,6 +203,8 @@ class JAI_Content {
             'revision_hash' => self::revision_hash( $post ),
             'url' => get_permalink( $post ),
             'rank_math' => self::rank_math_values( $post->ID ),
+            'yoast_available' => self::yoast_available(),
+            'yoast' => self::yoast_values( $post->ID ),
         );
     }
 
@@ -156,7 +232,7 @@ class JAI_Content {
         }
     }
 
-    public static function update( $post_id, $expected_revision_hash, $fields = array(), $rank_math = array() ) {
+    public static function update( $post_id, $expected_revision_hash, $fields = array(), $rank_math = array(), $yoast = array() ) {
         $post = self::ensure_editable_post( $post_id );
         if ( is_wp_error( $post ) ) { return $post; }
         $current = self::revision_hash( $post );
@@ -166,6 +242,9 @@ class JAI_Content {
         }
         $fields = is_array( $fields ) ? $fields : array();
         $rank_math = is_array( $rank_math ) ? $rank_math : array();
+        $yoast = is_array( $yoast ) ? $yoast : array();
+        $yoast_valid = self::validate_yoast( $yoast );
+        if ( is_wp_error( $yoast_valid ) ) { return $yoast_valid; }
         $unknown = array_diff( array_keys( $fields ), array( 'title','slug','excerpt','content','status' ) );
         if ( $unknown ) {
             return new WP_Error( 'jai_content_field_denied', 'Unsupported content field: ' . reset( $unknown ), array( 'status' => 400 ) );
@@ -173,7 +252,7 @@ class JAI_Content {
         if ( isset( $fields['status'] ) && ! in_array( $fields['status'], self::statuses(), true ) ) {
             return new WP_Error( 'jai_content_status_denied', 'Requested status is not allowed.', array( 'status' => 400 ) );
         }
-        if ( empty( $fields ) && empty( $rank_math ) ) {
+        if ( empty( $fields ) && empty( $rank_math ) && empty( $yoast ) ) {
             return new WP_Error( 'jai_content_no_changes', 'No changes were supplied.', array( 'status' => 400 ) );
         }
 
@@ -192,6 +271,12 @@ class JAI_Content {
             if ( is_wp_error( $updated ) ) { return $updated; }
         }
         self::apply_rank_math( $post->ID, $rank_math );
+        if ( $yoast ) {
+            self::apply_yoast( $post->ID, $yoast );
+            // Trigger Yoast's standard post-save watcher to refresh indexables.
+            $refreshed = wp_update_post( array( 'ID' => $post->ID ), true );
+            if ( is_wp_error( $refreshed ) ) { return $refreshed; }
+        }
         clean_post_cache( $post->ID );
         $fresh = get_post( $post->ID );
         if ( $fresh ) { JAI_Backups::mark_payload_after( $backup['change_id'], self::snapshot( $fresh ) ); }
@@ -234,6 +319,14 @@ class JAI_Content {
         ), true );
         if ( is_wp_error( $restore ) ) { return $restore; }
         self::restore_rank_math( $post->ID, $snap['rank_math'] ?? array() );
+        // Preserve Yoast metadata when restoring backups made before this feature.
+        if ( isset( $snap['yoast'] ) && is_array( $snap['yoast'] ) ) {
+            self::restore_yoast( $post->ID, $snap['yoast'] );
+            if ( self::yoast_available() ) {
+                $refreshed = wp_update_post( array( 'ID' => $post->ID ), true );
+                if ( is_wp_error( $refreshed ) ) { return $refreshed; }
+            }
+        }
         clean_post_cache( $post->ID );
         JAI_Backups::mark_rolled_back( $change_id );
         return array( 'change_id' => (string) $change_id, 'restored' => true, 'item' => self::get( $post->ID ) );
@@ -244,13 +337,16 @@ class JAI_Content {
         return ! empty( $admins ) ? (int) $admins[0] : 0;
     }
 
-    public static function create( $post_type, $fields = array(), $rank_math = array(), $author_id = 0 ) {
+    public static function create( $post_type, $fields = array(), $rank_math = array(), $author_id = 0, $yoast = array() ) {
         $post_type = sanitize_key( (string) $post_type );
         if ( ! in_array( $post_type, self::searchable_post_types(), true ) ) {
             return new WP_Error( 'jai_content_type_denied', 'This post type is not available for creation.', array( 'status' => 403 ) );
         }
         $fields = is_array( $fields ) ? $fields : array();
         $rank_math = is_array( $rank_math ) ? $rank_math : array();
+        $yoast = is_array( $yoast ) ? $yoast : array();
+        $yoast_valid = self::validate_yoast( $yoast );
+        if ( is_wp_error( $yoast_valid ) ) { return $yoast_valid; }
         $unknown = array_diff( array_keys( $fields ), array( 'title','slug','excerpt','content','status' ) );
         if ( $unknown ) {
             return new WP_Error( 'jai_content_field_denied', 'Unsupported content field: ' . reset( $unknown ), array( 'status' => 400 ) );
@@ -282,6 +378,11 @@ class JAI_Content {
             if ( is_wp_error( $updated ) ) { return $updated; }
         }
         self::apply_rank_math( $post_id, $rank_math );
+        if ( $yoast ) {
+            self::apply_yoast( $post_id, $yoast );
+            $refreshed = wp_update_post( array( 'ID' => $post_id ), true );
+            if ( is_wp_error( $refreshed ) ) { return $refreshed; }
+        }
         clean_post_cache( $post_id );
         $fresh = get_post( $post_id );
         if ( $fresh ) { JAI_Backups::mark_payload_after( $backup['change_id'], self::snapshot( $fresh ) ); }
