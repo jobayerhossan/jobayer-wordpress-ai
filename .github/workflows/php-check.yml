@@ -1,0 +1,19 @@
+name: PHP and Yoast Metadata Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PHP syntax
+        run: find . -type f -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
+      - name: Test Yoast metadata mapping and rollback
+        run: php tests/yoast-meta.test.php
