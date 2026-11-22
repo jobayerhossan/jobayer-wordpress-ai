@@ -24,6 +24,12 @@ class JAI_REST {
         self::route( '/rollback', 'rollback' );
         self::route( '/runtime/url/check', 'check_url' );
         self::route( '/content/search', 'search_content' );
+        self::route( '/rankmath/redirects/list', 'rankmath_redirect_list' );
+        self::route( '/rankmath/redirects/check', 'rankmath_redirect_check' );
+        self::route( '/rankmath/redirects/create', 'rankmath_redirect_create' );
+        self::route( '/rankmath/redirects/update', 'rankmath_redirect_update' );
+        self::route( '/rankmath/redirects/delete', 'rankmath_redirect_delete' );
+        self::route( '/rankmath/redirects/bulk', 'rankmath_redirect_bulk' );
         self::route( '/content/get', 'get_content' );
         self::route( '/content/update', 'update_content' );
         self::route( '/content/rollback', 'rollback_content' );
@@ -55,6 +61,30 @@ class JAI_REST {
         return is_array( $params ) ? $params : array();
     }
 
+    public static function rankmath_redirect_list( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::listing( self::json( $r ) );
+    }
+
+    public static function rankmath_redirect_check( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::check( self::json( $r ) );
+    }
+
+    public static function rankmath_redirect_create( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::create( self::json( $r ) );
+    }
+
+    public static function rankmath_redirect_update( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::update( self::json( $r ) );
+    }
+
+    public static function rankmath_redirect_delete( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::delete( self::json( $r ) );
+    }
+
+    public static function rankmath_redirect_bulk( WP_REST_Request $r ) {
+        return JAI_RankMath_Redirects::bulk( self::json( $r ) );
+    }
+
     public static function site_info() {
         if ( ! function_exists( 'get_plugins' ) ) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -84,6 +114,7 @@ class JAI_REST {
                 'media_upload' => true,
                 'media_alt_management' => true,
                 'rank_math' => defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath\\Helper' ),
+                'rank_math_redirections' => class_exists( 'RankMath\\Redirections\\DB' ),
                 'yoast' => JAI_Content::yoast_available(),
                 'code_patch' => true,
                 'rollback' => true,
