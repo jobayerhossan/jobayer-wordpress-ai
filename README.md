@@ -1,4 +1,4 @@
-# Jobayer AI Agent 0.7.1
+# Jobayer AI Agent 0.7.6
 
 Installable WordPress agent for the Jobayer WordPress AI MCP server.
 
@@ -15,6 +15,9 @@ Installable WordPress agent for the Jobayer WordPress AI MCP server.
 - Native WordPress update notifications from public GitHub Releases
 
 ## Updates
+
+Version 0.7.6 improves how quickly new GitHub releases become visible. When an administrator opens Plugins, the site refreshes the GitHub release and WordPress plugin-update transients at most once every 30 minutes. The Jobayer AI Agent plugin row also includes **Check GitHub update now** to force an immediate check. This detects an already published GitHub release; it does not publish releases or automatically install updates. Each website still needs normal update approval (or deliberately configured WordPress automatic plugin updates).
+
 
 Version 0.6.0 introduces the GitHub updater. Sites currently running 0.5.0 need to install 0.6.0 once manually because 0.5.0 does not yet know how to check GitHub for updates.
 
