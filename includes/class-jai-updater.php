@@ -6,11 +6,15 @@ class JAI_Updater {
     const API_URL = 'https://api.github.com/repos/jobayerhossan/jobayer-wordpress-ai/releases/latest';
     const CACHE_KEY = 'jai_agent_github_release_v1';
     const SLUG = 'jobayer-ai-agent';
+    const ADMIN_CHECK_KEY = 'jai_agent_admin_update_checked_v1';
 
     public static function init() {
         add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
         add_filter( 'plugins_api', array( __CLASS__, 'plugin_information' ), 10, 3 );
         add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_cache_after_upgrade' ), 10, 2 );
+        add_action( 'load-plugins.php', array( __CLASS__, 'maybe_refresh_on_plugins_screen' ) );
+        add_action( 'admin_post_jai_agent_check_updates', array( __CLASS__, 'force_check_updates' ) );
+        add_filter( 'plugin_action_links_' . self::plugin_basename(), array( __CLASS__, 'plugin_action_links' ) );
     }
 
     private static function plugin_basename() {
@@ -73,7 +77,7 @@ class JAI_Updater {
             'published_at' => sanitize_text_field( $data['published_at'] ?? '' ),
         );
 
-        set_site_transient( self::CACHE_KEY, $release, 6 * HOUR_IN_SECONDS );
+        set_site_transient( self::CACHE_KEY, $release, 30 * MINUTE_IN_SECONDS );
         return $release;
     }
 
@@ -145,9 +149,64 @@ class JAI_Updater {
         );
     }
 
+
+    /**
+     * On the plugin administration page, refresh GitHub release discovery
+     * at most once every 30 minutes per installation, not every page view.
+     * WordPress normally retains its plugins update transient for hours.
+     */
+    public static function maybe_refresh_on_plugins_screen() {
+        if ( ! current_user_can( 'update_plugins' ) || get_site_transient( self::ADMIN_CHECK_KEY ) ) {
+            return;
+        }
+
+        set_site_transient( self::ADMIN_CHECK_KEY, 1, 30 * MINUTE_IN_SECONDS );
+        self::refresh_wordpress_updates();
+    }
+
+    /**
+     * Make a specific, nonce-protected "check now" action available to admins.
+     */
+    public static function plugin_action_links( $links ) {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            return $links;
+        }
+        $url = wp_nonce_url(
+            admin_url( 'admin-post.php?action=jai_agent_check_updates' ),
+            'jai_agent_check_updates'
+        );
+        $links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Check GitHub update now', 'jobayer-ai-agent' ) . '</a>';
+        return $links;
+    }
+
+    public static function force_check_updates() {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_die( esc_html__( 'You cannot check plugin updates.', 'jobayer-ai-agent' ), '', array( 'response' => 403 ) );
+        }
+        check_admin_referer( 'jai_agent_check_updates' );
+        self::refresh_wordpress_updates();
+        set_site_transient( self::ADMIN_CHECK_KEY, 1, 30 * MINUTE_IN_SECONDS );
+        wp_safe_redirect( add_query_arg( 'jai_agent_checked', '1', admin_url( 'plugins.php' ) ) );
+        exit;
+    }
+
+    /**
+     * Clear both the plugin's GitHub cache and WordPress's plugin update cache.
+     * Recompute in the same request so the available update is shown immediately.
+     */
+    private static function refresh_wordpress_updates() {
+        delete_site_transient( self::CACHE_KEY );
+        delete_site_transient( 'update_plugins' );
+        if ( ! function_exists( 'wp_update_plugins' ) ) {
+            require_once ABSPATH . 'wp-includes/update.php';
+        }
+        wp_update_plugins();
+    }
+
     public static function clear_cache_after_upgrade( $upgrader, $options ) {
         if ( isset( $options['type'] ) && 'plugin' === $options['type'] ) {
             delete_site_transient( self::CACHE_KEY );
+            delete_site_transient( self::ADMIN_CHECK_KEY );
         }
     }
 }
