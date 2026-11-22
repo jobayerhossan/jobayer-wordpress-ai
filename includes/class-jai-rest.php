@@ -167,7 +167,7 @@ class JAI_REST {
 
     public static function get_media_image( WP_REST_Request $r ) {
         $p = self::json( $r );
-        return JAI_Media::get_image( $p['id'] ?? 0 );
+        return JAI_Media::get_image( $p['id'] ?? 0, true );
     }
 
     public static function update_media_alt( WP_REST_Request $r ) {

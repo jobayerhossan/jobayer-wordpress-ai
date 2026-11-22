@@ -158,12 +158,12 @@ class JAI_Media {
         return hash( 'sha256', false === $json ? '' : $json );
     }
 
-    public static function get_image( $id ) {
+    public static function get_image( $id, $include_preview = false ) {
         $post = self::image_attachment( $id );
         if ( is_wp_error( $post ) ) { return $post; }
         $metadata = wp_get_attachment_metadata( $post->ID );
         $file = get_attached_file( $post->ID );
-        return array(
+        $data = array(
             'id' => (int) $post->ID,
             'url' => wp_get_attachment_url( $post->ID ),
             'filename' => $file ? basename( $file ) : '',
@@ -177,6 +177,42 @@ class JAI_Media {
             'alt_text' => (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ),
             'revision_hash' => self::alt_revision_hash( $post->ID ),
         );
+        if ( $include_preview ) {
+            $data['preview_data_url'] = self::read_image_thumbnail( $post->ID, $metadata, $file );
+        }
+        return $data;
+    }
+
+    // Read existing WordPress-generated preview files only; never download remote URLs or resize originals.
+    private static function read_image_thumbnail( $id, $metadata, $original ) {
+        if ( ! $original || ! is_file( $original ) ) { return ''; }
+        $directory = realpath( dirname( $original ) );
+        if ( ! $directory ) { return ''; }
+        $mime_map = array(
+            'image/jpeg' => 'image/jpeg', 'image/png' => 'image/png',
+            'image/webp' => 'image/webp', 'image/gif' => 'image/gif',
+        );
+        $files = array();
+        foreach ( array( 'medium', 'thumbnail', 'medium_large' ) as $size ) {
+            if ( ! empty( $metadata['sizes'][ $size ]['file'] ) ) {
+                $files[] = basename( (string) $metadata['sizes'][ $size ]['file'] );
+            }
+        }
+        $files[] = basename( $original );
+        foreach ( array_unique( $files ) as $filename ) {
+            $candidate = $directory . DIRECTORY_SEPARATOR . $filename;
+            $real = realpath( $candidate );
+            if ( ! $real || dirname( $real ) !== $directory || ! is_readable( $real ) ) { continue; }
+            $bytes = filesize( $real );
+            if ( false === $bytes || $bytes < 1 || $bytes > 160000 ) { continue; }
+            $info = @getimagesize( $real );
+            $mime = is_array( $info ) ? strtolower( (string) ( $info['mime'] ?? '' ) ) : '';
+            if ( ! isset( $mime_map[ $mime ] ) ) { continue; }
+            $blob = @file_get_contents( $real );
+            if ( false === $blob ) { continue; }
+            return 'data:' . $mime_map[ $mime ] . ';base64,' . base64_encode( $blob );
+        }
+        return '';
     }
 
     public static function list_images( $page = 1, $per_page = 50, $missing_only = false ) {
