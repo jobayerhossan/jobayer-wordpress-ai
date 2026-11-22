@@ -79,6 +79,7 @@ class JAI_REST {
                 'content_update' => true,
                 'media_upload' => true,
                 'rank_math' => defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath\\Helper' ),
+                'yoast' => JAI_Content::yoast_available(),
                 'code_patch' => true,
                 'rollback' => true,
                 'site_registry' => true,
@@ -132,7 +133,7 @@ class JAI_REST {
 
     public static function update_content( WP_REST_Request $r ) {
         $p = self::json( $r );
-        return JAI_Content::update( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['fields'] ?? array(), $p['rank_math'] ?? array() );
+        return JAI_Content::update( $p['id'] ?? 0, $p['expected_revision_hash'] ?? '', $p['fields'] ?? array(), $p['rank_math'] ?? array(), $p['yoast'] ?? array() );
     }
 
     public static function rollback_content( WP_REST_Request $r ) {
@@ -142,7 +143,7 @@ class JAI_REST {
 
     public static function create_content( WP_REST_Request $r ) {
         $p = self::json( $r );
-        return JAI_Content::create( $p['post_type'] ?? 'post', $p['fields'] ?? array(), $p['rank_math'] ?? array(), $p['author_id'] ?? 0 );
+        return JAI_Content::create( $p['post_type'] ?? 'post', $p['fields'] ?? array(), $p['rank_math'] ?? array(), $p['author_id'] ?? 0, $p['yoast'] ?? array() );
     }
 
     public static function rollback_created_content( WP_REST_Request $r ) {
