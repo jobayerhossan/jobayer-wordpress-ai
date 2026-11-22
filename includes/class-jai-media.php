@@ -212,6 +212,39 @@ class JAI_Media {
             if ( false === $blob ) { continue; }
             return 'data:' . $mime_map[ $mime ] . ';base64,' . base64_encode( $blob );
         }
+        // Some older attachments have no generated medium/thumbnail metadata.
+        // Only attempt a bounded local fallback, never an external fetch.
+        $size = filesize( $original );
+        $original_info = @getimagesize( $original );
+        if ( false !== $size && $size > 0 && $size <= 4000000 && is_array( $original_info ) ) {
+            $pixels = (int) $original_info[0] * (int) $original_info[1];
+            if ( $pixels > 0 && $pixels <= 9000000 ) {
+                if ( ! function_exists( 'wp_get_image_editor' ) ) {
+                    require_once ABSPATH . 'wp-admin/includes/image.php';
+                }
+                $editor = wp_get_image_editor( $original );
+                if ( ! is_wp_error( $editor ) ) {
+                    $resized = $editor->resize( 320, 240, false );
+                    if ( ! is_wp_error( $resized ) ) {
+                        $temp = wp_tempnam( 'jai-preview-' . (int) $id . '.jpg' );
+                        if ( $temp ) {
+                            $saved = $editor->save( $temp, 'image/jpeg' );
+                            $saved_file = ! is_wp_error( $saved ) && ! empty( $saved['path'] ) ? $saved['path'] : '';
+                            if ( $saved_file && is_file( $saved_file ) && filesize( $saved_file ) <= 160000 ) {
+                                $data = @file_get_contents( $saved_file );
+                                if ( false !== $data ) {
+                                    @unlink( $saved_file );
+                                    if ( $temp !== $saved_file && is_file( $temp ) ) { @unlink( $temp ); }
+                                    return 'data:image/jpeg;base64,' . base64_encode( $data );
+                                }
+                            }
+                            if ( $saved_file && is_file( $saved_file ) ) { @unlink( $saved_file ); }
+                            if ( is_file( $temp ) ) { @unlink( $temp ); }
+                        }
+                    }
+                }
+            }
+        }
         return '';
     }
 
