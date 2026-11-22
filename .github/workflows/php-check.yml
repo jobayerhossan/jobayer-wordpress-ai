@@ -17,3 +17,5 @@ jobs:
         run: find . -type f -name '*.php' -not -path './build/*' -print0 | xargs -0 -n1 php -l
       - name: Test Yoast metadata mapping and rollback
         run: php tests/yoast-meta.test.php
+      - name: Test media alt metadata preservation and rollback
+        run: php tests/media-alt.test.php
