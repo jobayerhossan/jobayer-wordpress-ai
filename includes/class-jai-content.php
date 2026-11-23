@@ -198,6 +198,7 @@ class JAI_Content {
             'excerpt' => $post->post_excerpt,
             'content' => $post->post_content,
             'author_id' => (int) $post->post_author,
+            'parent_id' => (int) $post->post_parent,
             'created_gmt' => $post->post_date_gmt,
             'modified_gmt' => $post->post_modified_gmt,
             'revision_hash' => self::revision_hash( $post ),
@@ -347,9 +348,20 @@ class JAI_Content {
         $yoast = is_array( $yoast ) ? $yoast : array();
         $yoast_valid = self::validate_yoast( $yoast );
         if ( is_wp_error( $yoast_valid ) ) { return $yoast_valid; }
-        $unknown = array_diff( array_keys( $fields ), array( 'title','slug','excerpt','content','status' ) );
+        $unknown = array_diff( array_keys( $fields ), array( 'title','slug','excerpt','content','status','parent_id' ) );
         if ( $unknown ) {
             return new WP_Error( 'jai_content_field_denied', 'Unsupported content field: ' . reset( $unknown ), array( 'status' => 400 ) );
+        }
+        $parent_id = 0;
+        if ( array_key_exists( 'parent_id', $fields ) ) {
+            if ( 'page' !== $post_type || ! is_numeric( $fields['parent_id'] ) || (int) $fields['parent_id'] < 1 ) {
+                return new WP_Error( 'jai_content_parent_invalid', 'parent_id must refer to an existing parent page.', array( 'status' => 400 ) );
+            }
+            $parent_id = absint( $fields['parent_id'] );
+            $parent = get_post( $parent_id );
+            if ( ! $parent || 'page' !== $parent->post_type || 'trash' === $parent->post_status || ! current_user_can( 'edit_post', $parent_id ) ) {
+                return new WP_Error( 'jai_content_parent_denied', 'The requested parent page is not available for editing.', array( 'status' => 403 ) );
+            }
         }
         $status = isset( $fields['status'] ) ? (string) $fields['status'] : 'draft';
         if ( ! in_array( $status, self::statuses(), true ) ) {
@@ -362,6 +374,7 @@ class JAI_Content {
             'post_type' => $post_type,
             'post_status' => 'draft',
             'post_author' => $author_id,
+            'post_parent' => $parent_id,
             'post_title' => wp_slash( (string) ( $fields['title'] ?? '' ) ),
             'post_content' => wp_slash( (string) ( $fields['content'] ?? '' ) ),
             'post_excerpt' => wp_slash( (string) ( $fields['excerpt'] ?? '' ) ),
