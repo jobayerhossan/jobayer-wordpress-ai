@@ -359,7 +359,7 @@ class JAI_Content {
             }
             $parent_id = absint( $fields['parent_id'] );
             $parent = get_post( $parent_id );
-            if ( ! $parent || 'page' !== $parent->post_type || 'trash' === $parent->post_status || ! current_user_can( 'edit_post', $parent_id ) ) {
+            if ( ! $parent || 'page' !== $parent->post_type || 'trash' === $parent->post_status ) {
                 return new WP_Error( 'jai_content_parent_denied', 'The requested parent page is not available for editing.', array( 'status' => 403 ) );
             }
         }
