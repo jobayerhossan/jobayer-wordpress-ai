@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Jobayer AI Agent
+ * Plugin Name: WP AI Agent
  * Description: Secure WordPress AI development agent with code/content/media/Elementor editing, encrypted backups, rollback, diagnostics, and one-click MCP registration.
  * Version: 0.7.6
- * Author: Jobayer Hossan
+ * Author: WP AI Labs
  * Requires at least: 6.4
  * Requires PHP: 8.0
  * Update URI: https://github.com/jobayerhossan/jobayer-wordpress-ai
